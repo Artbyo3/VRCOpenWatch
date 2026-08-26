@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VRC Watch Shader Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Share+Tech+Mono&family=Titillium+Web:wght@400;600&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1115;
+    --content-bg:#1b1f27;
+    --border:#2b313c;
+    --text:#e9ecef;
+    --text-dim:#8b93a1;
+    --price:#66ffc2;
+    --accent:#78b7ff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Titillium Web', sans-serif;
+    padding:28px 20px 60px;
+  }
+  h1{
+    font-family:'Rajdhani', sans-serif;
+    font-weight:700;
+    font-size:22px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    margin:0 0 4px;
+  }
+  .subtitle{
+    font-family:'Share Tech Mono', monospace;
+    font-size:12px;
+    color:var(--text-dim);
+    margin-bottom:26px;
+  }
+  .layout{
+    display:grid;
+    grid-template-columns:280px 1fr;
+    gap:24px;
+    max-width:980px;
+    margin:0 auto;
+  }
+  @media (max-width:760px){
+    .layout{grid-template-columns:1fr;}
+  }
+  .panel{
+    background:var(--content-bg);
+    border:1px solid var(--border);
+    padding:18px;
+  }
+  .panel h2{
+    font-family:'Rajdhani', sans-serif;
+    font-size:15px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 14px;
+  }
+  label{
+    display:block;
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px;
+    color:var(--text-dim);
+    margin-bottom:4px;
+    margin-top:14px;
+  }
+  label:first-of-type{margin-top:0;}
+  input[type="number"], select{
+    width:100%;
+    background:var(--bg);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:7px 8px;
+    font-family:'Share Tech Mono', monospace;
+    font-size:13px;
+  }
+  input[type="color"]{
+    width:100%;
+    height:34px;
+    background:var(--bg);
+    border:1px solid var(--border);
+    padding:2px;
+    cursor:pointer;
+  }
+  .row2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .checkbox-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:14px;
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px;
+    color:var(--text-dim);
+  }
+
+  .preview-wrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:14px;
+  }
+  #atlasCanvas{
+    background:
+      linear-gradient(45deg, #2a2d33 25%, transparent 25%),
+      linear-gradient(-45deg, #2a2d33 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #2a2d33 75%),
+      linear-gradient(-45deg, transparent 75%, #2a2d33 75%);
+    background-size:16px 16px;
+    background-position:0 0, 0 8px, 8px -8px, -8px 0px;
+    max-width:100%;
+    border:1px solid var(--border);
+  }
+  .btn{
+    font-family:'Rajdhani', sans-serif;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    background:var(--price);
+    color:#0f1115;
+    border:none;
+    padding:11px 22px;
+    cursor:pointer;
+    transition:filter 0.12s ease;
+  }
+  .btn:hover{filter:brightness(1.1);}
+  .btn.secondary{
+    background:transparent;
+    border:1px solid var(--accent);
+    color:var(--accent);
+  }
+
+  .shader-panel{
+    margin-top:24px;
+    max-width:980px;
+    margin-left:auto;
+    margin-right:auto;
+    background:var(--content-bg);
+    border:1px solid var(--border);
+    padding:18px;
+  }
+  .shader-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:12px;
+  }
+  .shader-header h2{
+    font-family:'Rajdhani', sans-serif;
+    font-size:15px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0;
+  }
+  pre{
+    background:var(--bg);
+    border:1px solid var(--border);
+    padding:14px;
+    overflow-x:auto;
+    font-family:'Share Tech Mono', monospace;
+    font-size:11.5px;
+    line-height:1.6;
+    color:var(--text);
+    max-height:420px;
+  }
+  .note{
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px;
+    color:var(--text-dim);
+    margin-top:10px;
+    border-left:2px solid var(--border);
+    padding-left:12px;
+  }
+  .copied-tag{
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px;
+    color:var(--price);
+    opacity:0;
+    transition:opacity 0.15s ease;
+  }
+  .copied-tag.show{opacity:1;}
+
+  .lang-bar{
+    display:flex;
+    justify-content:flex-end;
+    gap:4px;
+    margin-bottom:16px;
+    max-width:980px;
+    margin-left:auto;
+    margin-right:auto;
+  }
+  .lang-bar button{
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px;
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    padding:4px 10px;
+    cursor:pointer;
+    transition:border-color 0.15s, color 0.15s;
+  }
+  .lang-bar button:hover{border-color:var(--accent);color:var(--accent);}
+  .lang-bar button.active{border-color:var(--price);color:var(--price);}
+
+  .header-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    max-width:980px;
+    margin:0 auto 20px;
+  }
+</style>
+</head>
+<body>
+
+<div class="lang-bar">
+  <button class="active" data-lang="en">EN</button>
+  <button data-lang="jp">JP</button>
+  <button data-lang="es">ES</button>
+</div>
+
+<div class="header-row">
+  <div>
+    <h1 data-i18n="title">VRC Watch Shader Generator</h1>
+    <div class="subtitle" data-i18n="subtitle">Generate a digit texture (0–9) and a pre-configured VRChat/DigitalClock shader to use it.</div>
+  </div>
+</div>
+
+<div class="layout">
+
+  <div class="panel">
+    <h2 data-i18n="config">Configuration</h2>
+
+    <label data-i18n="cellW">Digit width (px)</label>
+    <input type="number" id="cellW" value="80" min="16" max="512">
+
+    <label data-i18n="cellH">Digit height (px)</label>
+    <input type="number" id="cellH" value="120" min="16" max="512">
+
+    <label data-i18n="font">Font</label>
+    <select id="fontFamily">
+      <option value="'Orbitron', sans-serif">Orbitron (digital / futuristic)</option>
+      <option value="'Share Tech Mono', monospace">Share Tech Mono (terminal)</option>
+      <option value="'Rajdhani', sans-serif">Rajdhani (techwear)</option>
+      <option value="monospace">Monospace (system)</option>
+      <option value="__custom__" id="customFontOption" disabled data-i18n="customFontOpt">Custom font (upload a file)</option>
+    </select>
+
+    <label data-i18n="uploadFont">Upload custom font (.ttf / .otf / .woff)</label>
+    <input type="file" id="customFontFile" accept=".ttf,.otf,.woff,.woff2">
+    <span class="note" id="customFontStatus" style="display:block; margin-top:6px;"></span>
+
+    <label data-i18n="fontSize">Font size (px)</label>
+    <input type="number" id="fontSize" value="70" min="8" max="480">
+
+    <div class="row2">
+      <div class="checkbox-row" style="margin-top:0;">
+        <input type="checkbox" id="boldToggle" checked>
+        <label style="margin:0;" data-i18n="bold">Bold</label>
+      </div>
+      <div class="checkbox-row" style="margin-top:0;">
+        <input type="checkbox" id="italicToggle">
+        <label style="margin:0;" data-i18n="italic">Italic</label>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label data-i18n="offsetX">Horizontal offset (px)</label>
+        <input type="number" id="offsetX" value="0">
+      </div>
+      <div>
+        <label data-i18n="offsetY">Vertical offset (px)</label>
+        <input type="number" id="offsetY" value="0">
+      </div>
+    </div>
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="strokeToggle">
+      <label style="margin:0;" data-i18n="stroke">Add outline (stroke)</label>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label data-i18n="strokeColor">Outline color</label>
+        <input type="color" id="strokeColor" value="#66ffc2">
+      </div>
+      <div>
+        <label data-i18n="strokeWidth">Outline width (px)</label>
+        <input type="number" id="strokeWidth" value="3" min="1" max="20">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label data-i18n="textColor">Digit color</label>
+        <input type="color" id="textColor" value="#e9ecef">
+      </div>
+      <div>
+        <label data-i18n="bgColor">Background color</label>
+        <input type="color" id="bgColor" value="#141414">
+      </div>
+    </div>
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="transparentBg">
+      <label style="margin:0;" data-i18n="transparentBg">Transparent background (ignores background color)</label>
+    </div>
+
+    <div style="margin-top:20px; display:flex; flex-direction:column; gap:10px;">
+      <button class="btn" id="downloadBtn" data-i18n="download">Download atlas.png</button>
+    </div>
+
+    <p class="note" data-i18n="atlasNote">The atlas always has 15 fixed cells: 0–9, ":", A, P, M, and a blank cell — that's what the shader expects. With this single atlas you can use ANY clock format (HH:MM:SS, HH:MM, MM:SS, or 12h with AM/PM); the format is chosen later in the "Clock Format" dropdown of the material in Unity — no need to generate a different atlas per format.</p>
+  </div>
+
+  <div class="panel">
+    <h2 data-i18n="preview">Preview</h2>
+    <div class="preview-wrap">
+      <canvas id="atlasCanvas"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<div class="shader-panel">
+  <div class="shader-header">
+    <h2 data-i18n="shaderTitle">Configured Shader (VRChat/DigitalClock)</h2>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span class="copied-tag" id="copiedTag" data-i18n="copied">COPIED</span>
+      <button class="btn secondary" id="copyBtn" data-i18n="copyShader">Copy shader</button>
+    </div>
+  </div>
+  <pre id="shaderCode"></pre>
+  <p class="note" data-i18n="shaderNote">This shader doesn't change based on atlas size/font — the math is already normalized (0–1) and only requires the texture to have exactly 15 columns x 1 row (0-9, :, A, P, M, blank). Paste it into a .shader file in your Unity project, create a material, assign this shader, drag the downloaded atlas.png into "Character Atlas", and choose the format (HH:MM:SS, HH:MM, MM:SS, or 12h+AM/PM) directly in the material Inspector.</p>
+</div>
+
+<script>
+const I18N = {
+  en: {
+    title: "VRC Watch Shader Generator",
+    subtitle: "Generate a digit texture (0\u20139) and a pre-configured VRChat/DigitalClock shader to use it.",
+    config: "Configuration",
+    cellW: "Digit width (px)",
+    cellH: "Digit height (px)",
+    font: "Font",
+    customFontOpt: "Custom font (upload a file)",
+    uploadFont: "Upload custom font (.ttf / .otf / .woff)",
+    fontSize: "Font size (px)",
+    bold: "Bold",
+    italic: "Italic",
+    offsetX: "Horizontal offset (px)",
+    offsetY: "Vertical offset (px)",
+    stroke: "Add outline (stroke)",
+    strokeColor: "Outline color",
+    strokeWidth: "Outline width (px)",
+    textColor: "Digit color",
+    bgColor: "Background color",
+    transparentBg: "Transparent background (ignores background color)",
+    download: "Download atlas.png",
+    atlasNote: "The atlas always has 15 fixed cells: 0\u20139, \":\", A, P, M, and a blank cell \u2014 that\u2019s what the shader expects. With this single atlas you can use ANY clock format (HH:MM:SS, HH:MM, MM:SS, or 12h with AM/PM); the format is chosen later in the \u201cClock Format\u201d dropdown of the material in Unity \u2014 no need to generate a different atlas per format.",
+    preview: "Preview",
+    shaderTitle: "Configured Shader (VRChat/DigitalClock)",
+    copied: "COPIED",
+    copyShader: "Copy shader",
+    shaderNote: "This shader doesn\u2019t change based on atlas size/font \u2014 the math is already normalized (0\u20131) and only requires the texture to have exactly 15 columns \u00d7 1 row (0-9, :, A, P, M, blank). Paste it into a .shader file in your Unity project, create a material, assign this shader, drag the downloaded atlas.png into \u201cCharacter Atlas\u201d, and choose the format (HH:MM:SS, HH:MM, MM:SS, or 12h+AM/PM) directly in the material Inspector.",
+    loadingFont: "Loading font\u2026",
+    fontLoaded: "\u2713 loaded",
+    fontError: "Error loading font \u2014 check the file format.",
+    fontPrefix: "Custom font: "
+  },
+  jp: {
+    title: "VRC \u30A6\u30A9\u30C3\u30C1\u30B7\u30A7\u30FC\u30C0\u30FC\u30B8\u30A7\u30CD\u30EC\u30FC\u30BF\u30FC",
+    subtitle: "\u30C7\u30B8\u30C3\u30C8\u30C6\u30AF\u30B9\u30C1\u30E3\uFF080\u20139\uFF09\u3092\u751F\u6210\u3057\u3001VRChat/DigitalClock\u7528\u30B7\u30A7\u30FC\u30C0\u30FC\u3092\u4E88\u8A2D\u3055\u308C\u305F\u72B6\u614B\u3067\u4F7F\u7528\u3067\u304D\u307E\u3059\u3002",
+    config: "\u8A2D\u5B9A",
+    cellW: "\u5E45\uFF08px\uFF09",
+    cellH: "\u9AD8\u3055\uFF08px\uFF09",
+    font: "\u30D5\u30A9\u30F3\u30C8",
+    customFontOpt: "\u30AB\u30B9\u30BF\u30E0\u30D5\u30A9\u30F3\u30C8\uFF08\u30D5\u30A1\u30A4\u30EB\u3092\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\uFF09",
+    uploadFont: "\u30AB\u30B9\u30BF\u30E0\u30D5\u30A9\u30F3\u30C8\u3092\u30A2\u30C3\u30D7\u30ED\u30FC\u30C9\uFF08.ttf / .otf / .woff\uFF09",
+    fontSize: "\u30D5\u30A9\u30F3\u30C8\u30B5\u30A4\u30BA\uFF08px\uFF09",
+    bold: "\u592A\u5B57",
+    italic: "\u659C\u4F53",
+    offsetX: "\u6C34\u5E73\u30AA\u30D5\u30BB\u30C3\u30C8\uFF08px\uFF09",
+    offsetY: "\u5782\u76F4\u30AA\u30D5\u30BB\u30C3\u30C8\uFF08px\uFF09",
+    stroke: "\u30A2\u30A6\u30C8\u30E9\u30A4\u30F3\u3092\u8FFD\u52A0",
+    strokeColor: "\u30A2\u30A6\u30C8\u30E9\u30A4\u30F3\u8272",
+    strokeWidth: "\u30A2\u30A6\u30C8\u30E9\u30A4\u30F3\u5E45\uFF08px\uFF09",
+    textColor: "\u6570\u5B57\u306E\u8272",
+    bgColor: "\u80CC\u666F\u8272",
+    transparentBg: "\u900F\u660E\u80CC\u666F\uFF08\u80CC\u666F\u8272\u3092\u7121\u8996\uFF09",
+    download: "atlas.png \u3092\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9",
+    atlasNote: "\u30A2\u30C8\u30E9\u30B9\u306F\u5E38\u306B15\u3064\u306E\u56FA\u5B9A\u30BB\u30EB\u3067\u69CB\u6210\u3055\u308C\u3066\u3044\u307E\u3059\uFF1A0\u20139\u3001\u201C:\u201D\u3001A\u3001P\u3001M\u3001\u304A\u3088\u3073\u7A7A\u767D\u30BB\u30EB \u2014 \u30B7\u30A7\u30FC\u30C0\u30FC\u306F\u3053\u306E\u5F62\u5F0F\u3092\u60F3\u5B9A\u3057\u3066\u3044\u307E\u3059\u3002\u3053\u306E\u5358\u4E00\u306E\u30A2\u30C8\u30E9\u30B9\u3067\u3059\u3079\u3066\u306E\u6642\u8A08\u30D5\u30A9\u30FC\u30DE\u30C3\u30C8\uFF08HH:MM:SS\u3001HH:MM\u3001MM:SS\u300112h+AM/PM\uFF09\u3092\u4F7F\u7528\u3067\u304D\u307E\u3059\u3002\u30D5\u30A9\u30FC\u30DE\u30C3\u30C8\u306FMaterial\u306E\u300CClock Format\u300D\u30C9\u30ED\u30C3\u30D7\u30C0\u30A6\u30F3\u3067\u9078\u629E\u3057\u307E\u3059 \u2014 \u30D5\u30A9\u30FC\u30DE\u30C3\u30C8\u3054\u3068\u306B\u5225\u3005\u306E\u30A2\u30C8\u30E9\u30B9\u3092\u751F\u6210\u3059\u308B\u5FC5\u8981\u306F\u3042\u308A\u307E\u305B\u3093\u3002",
+    preview: "\u30D7\u30EC\u30D3\u30E5\u30FC",
+    shaderTitle: "\u8A2D\u5B9A\u6E08\u307F\u30B7\u30A7\u30FC\u30C0\u30FC\uFF08VRChat/DigitalClock\uFF09",
+    copied: "\u30B3\u30D4\u30FC\u6E08\u307F",
+    copyShader: "\u30B7\u30A7\u30FC\u30C0\u30FC\u3092\u30B3\u30D4\u30FC",
+    shaderNote: "\u3053\u306E\u30B7\u30A7\u30FC\u30C0\u30FC\u306F\u30A2\u30C8\u30E9\u30B9\u306E\u30B5\u30A4\u30BA/\u30D5\u30A9\u30F3\u30C8\u306B\u4F9D\u5B58\u3057\u307E\u305B\u3093 \u2014 \u6570\u5F0F\u306F0\u20131\u306B\u6B63\u898F\u5316\u3055\u308C\u3066\u304A\u308A\u3001\u30C6\u30AF\u30B9\u30C1\u30E3\u304C15\u5217\u00D71\u884C\uFF080-9\u3001:\u3001A\u3001P\u3001M\u3001\u7A7A\u767D\uFF09\u3067\u3042\u308B\u3053\u3068\u3060\u3051\u3092\u8981\u6C42\u3057\u307E\u3059\u3002Unity\u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u306E.shader\u30D5\u30A1\u30A4\u30EB\u306B\u8CBC\u308A\u4ED8\u3051\u3001\u30DE\u30C6\u30EA\u30A2\u30EB\u3092\u4F5C\u6210\u3057\u3066\u30B7\u30A7\u30FC\u30C0\u30FC\u3092\u5272\u308A\u5F53\u3066\u3001\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u3057\u305Fatlas.png\u3092\u300CCharacter Atlas\u300D\u306B\u30C9\u30E9\u30C3\u30B0\u3057\u3001\u30DE\u30C6\u30EA\u30A2\u30EBInspector\u3067\u30D5\u30A9\u30FC\u30DE\u30C3\u30C8\uFF08HH:MM:SS\u3001HH:MM\u3001MM:SS\u300112h+AM/PM\uFF09\u3092\u9078\u629E\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    loadingFont: "\u30D5\u30A9\u30F3\u30C8\u3092\u8AAD\u307F\u8FBC\u307F\u4E2D\u2026",
+    fontLoaded: "\u2713 \u8AAD\u307F\u8FBC\u307F\u5B8C\u4E86",
+    fontError: "\u30D5\u30A9\u30F3\u30C8\u8AAD\u307F\u8FBC\u307F\u30A8\u30E9\u30FC \u2014 \u30D5\u30A1\u30A4\u30EB\u5F62\u5F0F\u3092\u78BA\u8A8D\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+    fontPrefix: "\u30AB\u30B9\u30BF\u30E0\u30D5\u30A9\u30F3\u30C8\uFF1A"
+  },
+  es: {
+    title: "Generador de Shader para Reloj VRC",
+    subtitle: "Genera una textura de d\u00EDgitos (0\u20139) y un shader VRChat/DigitalClock preconfigurado para usarla.",
+    config: "Configuraci\u00F3n",
+    cellW: "Ancho por d\u00EDgito (px)",
+    cellH: "Alto por d\u00EDgito (px)",
+    font: "Fuente",
+    customFontOpt: "Fuente personalizada (sube un archivo)",
+    uploadFont: "Subir fuente personalizada (.ttf / .otf / .woff)",
+    fontSize: "Tama\u00F1o de fuente (px)",
+    bold: "Negrita",
+    italic: "It\u00E1lica",
+    offsetX: "Offset horizontal (px)",
+    offsetY: "Offset vertical (px)",
+    stroke: "Agregar contorno (stroke)",
+    strokeColor: "Color del contorno",
+    strokeWidth: "Grosor del contorno (px)",
+    textColor: "Color del n\u00FAmero",
+    bgColor: "Color de fondo",
+    transparentBg: "Fondo transparente (ignora color de fondo)",
+    download: "Descargar atlas.png",
+    atlasNote: "El atlas siempre tiene 15 celdas fijas: 0\u20139, \":\", A, P, M y una celda en blanco \u2014 as\u00ED lo espera el shader. Con este \u00FAnico atlas puedes usar CUALQUIER formato de reloj (HH:MM:SS, HH:MM, MM:SS, o 12h con AM/PM); el formato se elige despu\u00E9s en el dropdown \u201CFormato de reloj\u201D del material en Unity \u2014 no hace falta generar un atlas distinto por formato.",
+    preview: "Vista previa",
+    shaderTitle: "Shader configurado (VRChat/DigitalClock)",
+    copied: "COPIADO",
+    copyShader: "Copiar shader",
+    shaderNote: "Este shader no cambia seg\u00FAn el tama\u00F1o/fuente del atlas \u2014 la matem\u00E1tica ya est\u00E1 normalizada (0\u20131) y solo depende de que la textura tenga exactamente 15 columnas \u00D7 1 fila (0-9, :, A, P, M, blanco). P\u00E9galo en un archivo .shader dentro de tu proyecto de Unity, crea un material, as\u00EDgnale este shader, arrastra el atlas.png descargado en \u201CCharacter Atlas\u201D, y elige el formato (HH:MM:SS, HH:MM, MM:SS, o 12h+AM/PM) directo en el Inspector del material.",
+    loadingFont: "Cargando fuente\u2026",
+    fontLoaded: "\u2713 cargada",
+    fontError: "Error al cargar la fuente \u2014 revisa el formato del archivo.",
+    fontPrefix: "Fuente personalizada: "
+  }
+};
+
+let currentLang = "en";
+
+function applyLang(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang === "jp" ? "ja" : lang;
+  document.querySelectorAll("[data-i18n]").forEach(function(el) {
+    var key = el.getAttribute("data-i18n");
+    if (I18N[lang] && I18N[lang][key] !== undefined) {
+      el.textContent = I18N[lang][key];
+    }
+  });
+  document.querySelectorAll(".lang-bar button").forEach(function(btn) {
+    btn.classList.toggle("active", btn.getAttribute("data-lang") === lang);
+  });
+}
+
+document.querySelectorAll(".lang-bar button").forEach(function(btn) {
+  btn.addEventListener("click", function() {
+    applyLang(this.getAttribute("data-lang"));
+  });
+});
+
+var cellWInput = document.getElementById('cellW');
+var cellHInput = document.getElementById('cellH');
+var fontFamilyInput = document.getElementById('fontFamily');
+var fontSizeInput = document.getElementById('fontSize');
+var textColorInput = document.getElementById('textColor');
+var bgColorInput = document.getElementById('bgColor');
+var transparentBgInput = document.getElementById('transparentBg');
+var boldToggle = document.getElementById('boldToggle');
+var italicToggle = document.getElementById('italicToggle');
+var offsetXInput = document.getElementById('offsetX');
+var offsetYInput = document.getElementById('offsetY');
+var strokeToggle = document.getElementById('strokeToggle');
+var strokeColorInput = document.getElementById('strokeColor');
+var strokeWidthInput = document.getElementById('strokeWidth');
+var customFontFile = document.getElementById('customFontFile');
+var customFontOption = document.getElementById('customFontOption');
+var customFontStatus = document.getElementById('customFontStatus');
+var canvas = document.getElementById('atlasCanvas');
+var ctx = canvas.getContext('2d');
+
+var customFontFamilyName = null;
+
+customFontFile.addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  customFontStatus.textContent = I18N[currentLang].loadingFont;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    customFontFamilyName = 'CustomUploadedFont';
+    var fontFace = new FontFace(customFontFamilyName, ev.target.result);
+    fontFace.load().then(function(loaded) {
+      document.fonts.add(loaded);
+      customFontOption.disabled = false;
+      customFontOption.textContent = I18N[currentLang].fontPrefix + file.name;
+      fontFamilyInput.value = '__custom__';
+      customFontStatus.textContent = I18N[currentLang].fontLoaded + ' ' + file.name;
+      drawAtlas();
+    }).catch(function() {
+      customFontStatus.textContent = I18N[currentLang].fontError;
+    });
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+var ATLAS_CHARS = ['0','1','2','3','4','5','6','7','8','9',':','A','P','M',''];
+
+function drawAtlas() {
+  var cellW = parseInt(cellWInput.value) || 80;
+  var cellH = parseInt(cellHInput.value) || 120;
+  var fontSize = parseInt(fontSizeInput.value) || 70;
+  var font = fontFamilyInput.value;
+  if (font === '__custom__') {
+    font = customFontFamilyName ? "'" + customFontFamilyName + "'" : "'Orbitron', sans-serif";
+  }
+  var textColor = textColorInput.value;
+  var bgColor = bgColorInput.value;
+  var transparent = transparentBgInput.checked;
+  var weight = boldToggle.checked ? 700 : 400;
+  var style = italicToggle.checked ? 'italic' : 'normal';
+  var offX = parseInt(offsetXInput.value) || 0;
+  var offY = parseInt(offsetYInput.value) || 0;
+  var useStroke = strokeToggle.checked;
+  var strokeColor = strokeColorInput.value;
+  var strokeWidth = parseInt(strokeWidthInput.value) || 3;
+
+  canvas.width = cellW * ATLAS_CHARS.length;
+  canvas.height = cellH;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!transparent) {
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  ctx.font = style + ' ' + weight + ' ' + fontSize + 'px ' + font;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+
+  ATLAS_CHARS.forEach(function(ch, idx) {
+    if (ch === '') return;
+    var x = idx * cellW + cellW / 2 + offX;
+    var y = cellH / 2 + offY;
+
+    if (useStroke) {
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = strokeWidth;
+      ctx.strokeText(ch, x, y);
+    }
+    ctx.fillStyle = textColor;
+    ctx.fillText(ch, x, y);
+  });
+}
+
+[cellWInput, cellHInput, fontFamilyInput, fontSizeInput, textColorInput, bgColorInput, transparentBgInput,
+ boldToggle, italicToggle, offsetXInput, offsetYInput, strokeToggle, strokeColorInput, strokeWidthInput]
+  .forEach(function(el) { el.addEventListener('input', drawAtlas); });
+
+document.fonts.ready.then(drawAtlas);
+drawAtlas();
+
+document.getElementById('downloadBtn').addEventListener('click', function() {
+  var link = document.createElement('a');
+  link.download = 'digit-atlas.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+var shaderSource = 'Shader "VRChat/DigitalClock"\n{\n    Properties\n    {\n        _MainTex ("Character Atlas (0-9, :, A, P, M, blank \\u2014 15 cells in row)", 2D) = "white" {}\n        [Toggle] _UseLocalTime ("Use viewer local time (1) or UTC (0)", Float) = 1\n        [Enum(HH_MM_SS_24h,0,HH_MM_24h,1,MM_SS,2,HH_MM_12h_AMPM,3)] _ClockFormat ("Clock format", Float) = 0\n    }\n    SubShader\n    {\n        Tags\n        {\n            "RenderType"="Opaque"\n            "Queue"="Geometry"\n        }\n        Pass\n        {\n            CGPROGRAM\n            #pragma vertex vert\n            #pragma fragment frag\n            #include "UnityCG.cginc"\n            #include "Packages/com.vrchat.base/ShaderLibrary/VRCTime.cginc"\n\n            #define CHAR_COLON 10\n            #define CHAR_A 11\n            #define CHAR_P 12\n            #define CHAR_M 13\n            #define CHAR_BLANK 14\n            #define ATLAS_CHAR_COUNT 15\n\n            sampler2D _MainTex;\n            float _UseLocalTime;\n            float _ClockFormat;\n\n            struct appdata\n            {\n                float4 vertex : POSITION;\n                float2 uv : TEXCOORD0;\n            };\n\n            struct v2f\n            {\n                float4 vertex : SV_POSITION;\n                float2 uv : TEXCOORD0;\n            };\n\n            v2f vert(appdata v)\n            {\n                v2f o;\n                o.vertex = UnityObjectToClipPos(v.vertex);\n                o.uv = v.uv;\n                return o;\n            }\n\n            fixed4 frag(v2f i) : SV_Target\n            {\n                uint hours, minutes, seconds, milliseconds;\n\n                if (_UseLocalTime > 0.5)\n                {\n                    VRC_GetLocalTime(hours, minutes, seconds, milliseconds);\n                }\n                else\n                {\n                    VRC_GetUTCTime(hours, minutes, seconds, milliseconds);\n                }\n\n                uint slots[8];\n                uint totalSlots = 8;\n\n                int fmt = (int)round(_ClockFormat);\n\n                if (fmt == 0)\n                {\n                    totalSlots = 8;\n                    slots[0] = hours / 10;   slots[1] = hours % 10;   slots[2] = CHAR_COLON;\n                    slots[3] = minutes / 10; slots[4] = minutes % 10; slots[5] = CHAR_COLON;\n                    slots[6] = seconds / 10; slots[7] = seconds % 10;\n                }\n                else if (fmt == 1)\n                {\n                    totalSlots = 5;\n                    slots[0] = hours / 10;   slots[1] = hours % 10;   slots[2] = CHAR_COLON;\n                    slots[3] = minutes / 10; slots[4] = minutes % 10;\n                }\n                else if (fmt == 2)\n                {\n                    totalSlots = 5;\n                    slots[0] = minutes / 10; slots[1] = minutes % 10; slots[2] = CHAR_COLON;\n                    slots[3] = seconds / 10; slots[4] = seconds % 10;\n                }\n                else\n                {\n                    uint h12 = hours % 12;\n                    if (h12 == 0) h12 = 12;\n                    bool isPM = hours >= 12;\n\n                    totalSlots = 8;\n                    slots[0] = h12 / 10;     slots[1] = h12 % 10;     slots[2] = CHAR_COLON;\n                    slots[3] = minutes / 10; slots[4] = minutes % 10; slots[5] = CHAR_BLANK;\n                    slots[6] = isPM ? CHAR_P : CHAR_A;\n                    slots[7] = CHAR_M;\n                }\n\n                uint slotIndex = (uint)floor(i.uv.x * totalSlots);\n                if (slotIndex >= totalSlots) slotIndex = totalSlots - 1;\n\n                float localX = frac(i.uv.x * totalSlots);\n                uint charIndex = slots[slotIndex];\n\n                float atlasCellWidth = 1.0 / ATLAS_CHAR_COUNT;\n                float2 atlasUV = float2(\n                    localX * atlasCellWidth + charIndex * atlasCellWidth,\n                    i.uv.y\n                );\n\n                return tex2D(_MainTex, atlasUV);\n            }\n            ENDCG\n        }\n    }\n}';
+
+document.getElementById('shaderCode').textContent = shaderSource;
+
+document.getElementById('copyBtn').addEventListener('click', function() {
+  var tag = document.getElementById('copiedTag');
+  var done = function() {
+    tag.classList.add('show');
+    setTimeout(function() { tag.classList.remove('show'); }, 1200);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(shaderSource).then(done).catch(done);
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = shaderSource;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+    done();
+  }
+});
+</script>
+
+</body>
+</html>
