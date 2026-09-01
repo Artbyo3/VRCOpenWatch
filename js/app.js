@@ -58,6 +58,53 @@ document.getElementById('downloadShaderBtn').addEventListener('click', function(
   URL.revokeObjectURL(url);
 });
 
+var MIT_LICENSE = 'MIT License\n\nCopyright (c) 2026 VRCOpenWatch contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n';
+
+function shaderFileName() {
+  if (currentMode === 'flipbook') return 'VRCOpenWatch-Flipbook.shader';
+  return clockMapping === 'custom' ? 'VRCOpenWatch-CustomUV.shader' : 'VRCOpenWatch.shader';
+}
+function atlasFileName() {
+  return currentMode === 'flipbook' ? 'flipbook-atlas.png' : 'digit-atlas.png';
+}
+function atlasDataUrl() {
+  return currentMode === 'flipbook' ? flipbookAtlasCanvas.toDataURL('image/png') : canvas.toDataURL('image/png');
+}
+
+function getLicenseText() {
+  return fetch('./LICENSE.md').then(function(r) {
+    if (r.ok) return r.text();
+    throw new Error('no license');
+  }).catch(function() { return MIT_LICENSE; });
+}
+
+document.getElementById('downloadPackBtn').addEventListener('click', function() {
+  var btn = this;
+  var label = btn.querySelector('span');
+  var original = label.textContent;
+  if (typeof JSZip === 'undefined') {
+    label.textContent = I18N[currentLang].downloaded;
+    return;
+  }
+  var zip = new JSZip();
+  zip.file(shaderFileName(), getActiveShaderSource());
+  var base = atlasDataUrl().split(',')[1];
+  zip.file(atlasFileName(), base, { base64: true });
+  getLicenseText().then(function(lic) {
+    zip.file('LICENSE.md', lic);
+    return zip.generateAsync({ type: 'blob' });
+  }).then(function(blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = currentMode === 'flipbook' ? 'VRCOpenWatch-Flipbook-pack.zip' : (clockMapping === 'custom' ? 'VRCOpenWatch-CustomUV-pack.zip' : 'VRCOpenWatch-pack.zip');
+    a.click();
+    setTimeout(function() { URL.revokeObjectURL(url); }, 3000);
+    label.textContent = I18N[currentLang].downloaded;
+    setTimeout(function() { label.textContent = original; }, 1500);
+  });
+});
+
 /* ===== MODE SWITCHING & DEV MODE ===== */
 var devMode = localStorage.getItem('vrcwatch_dev_mode') === 'true';
 var devModeBtn = document.getElementById('devModeBtn');
