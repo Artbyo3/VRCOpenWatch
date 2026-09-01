@@ -78,30 +78,126 @@ function getLicenseText() {
   }).catch(function() { return MIT_LICENSE; });
 }
 
+function crc32(buf) {
+  var c, table = [], n, k;
+  for (n = 0; n < 256; n++) {
+    c = n;
+    for (k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  var crc = 0xFFFFFFFF;
+  for (var i = 0; i < buf.length; i++) crc = table[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function base64ToBytes(b64) {
+  var bin = atob(b64);
+  var bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+function buildZipFromFiles(files) {
+  var enc = new TextEncoder();
+  var parts = [], central = [];
+  var localLen = 0, centralLen = 0, offset = 0;
+
+  for (var fi = 0; fi < files.length; fi++) {
+    var f = files[fi];
+    var nameBytes = enc.encode(f.name);
+    var size = f.data.length;
+    var crc = crc32(f.data);
+
+    var lh = new Uint8Array(30);
+    var dvl = new DataView(lh.buffer);
+    lh.set([0x50, 0x4b, 0x03, 0x04], 0);
+    dvl.setUint16(4, 20, true);
+    dvl.setUint16(6, 0, true);
+    dvl.setUint16(8, 0, true);
+    dvl.setUint16(10, 0, true);
+    dvl.setUint16(12, 0x21, true);
+    dvl.setUint32(14, crc, true);
+    dvl.setUint32(18, size, true);
+    dvl.setUint32(22, size, true);
+    dvl.setUint16(26, nameBytes.length, true);
+    dvl.setUint16(28, 0, true);
+    parts.push(lh, nameBytes, f.data);
+    localLen += 30 + nameBytes.length + f.data.length;
+
+    var ch = new Uint8Array(46);
+    var dvc = new DataView(ch.buffer);
+    ch.set([0x50, 0x4b, 0x01, 0x02], 0);
+    dvc.setUint16(4, 20, true);
+    dvc.setUint16(6, 20, true);
+    dvc.setUint16(8, 0, true);
+    dvc.setUint16(10, 0, true);
+    dvc.setUint16(12, 0, true);
+    dvc.setUint16(14, 0x21, true);
+    dvc.setUint32(16, crc, true);
+    dvc.setUint32(20, size, true);
+    dvc.setUint32(24, size, true);
+    dvc.setUint16(28, nameBytes.length, true);
+    dvc.setUint16(30, 0, true);
+    dvc.setUint16(32, 0, true);
+    dvc.setUint16(34, 0, true);
+    dvc.setUint16(36, 0, true);
+    dvc.setUint32(38, 0, true);
+    dvc.setUint32(42, offset, true);
+    central.push(ch, nameBytes);
+    centralLen += 46 + nameBytes.length;
+
+    offset += 30 + nameBytes.length + f.data.length;
+  }
+
+  var eocd = new Uint8Array(22);
+  var dve = new DataView(eocd.buffer);
+  eocd.set([0x50, 0x4b, 0x05, 0x06], 0);
+  dve.setUint16(8, files.length, true);
+  dve.setUint16(10, files.length, true);
+  dve.setUint32(12, centralLen, true);
+  dve.setUint32(16, localLen, true);
+
+  var out = new Uint8Array(localLen + centralLen + 22);
+  var p = 0, i;
+  for (i = 0; i < parts.length; i++) { out.set(parts[i], p); p += parts[i].length; }
+  for (i = 0; i < central.length; i++) { out.set(central[i], p); p += central[i].length; }
+  out.set(eocd, p);
+  return out;
+}
+
 document.getElementById('downloadPackBtn').addEventListener('click', function() {
   var btn = this;
   var label = btn.querySelector('span');
   var original = label.textContent;
-  if (typeof JSZip === 'undefined') {
+
+  function done() {
     label.textContent = I18N[currentLang].downloaded;
-    return;
+    setTimeout(function() { label.textContent = original; }, 1500);
   }
-  var zip = new JSZip();
-  zip.file(shaderFileName(), getActiveShaderSource());
-  var base = atlasDataUrl().split(',')[1];
-  zip.file(atlasFileName(), base, { base64: true });
-  getLicenseText().then(function(lic) {
-    zip.file('LICENSE.md', lic);
-    return zip.generateAsync({ type: 'blob' });
-  }).then(function(blob) {
+  function fire(blob) {
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
     a.download = currentMode === 'flipbook' ? 'VRCOpenWatch-Flipbook-pack.zip' : (clockMapping === 'custom' ? 'VRCOpenWatch-CustomUV-pack.zip' : 'VRCOpenWatch-pack.zip');
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     setTimeout(function() { URL.revokeObjectURL(url); }, 3000);
-    label.textContent = I18N[currentLang].downloaded;
-    setTimeout(function() { label.textContent = original; }, 1500);
+    done();
+  }
+
+  getLicenseText().then(function(lic) {
+    var enc = new TextEncoder();
+    var files = [
+      { name: shaderFileName(), data: enc.encode(getActiveShaderSource()) },
+      { name: atlasFileName(), data: base64ToBytes(atlasDataUrl().split(',')[1]) },
+      { name: 'LICENSE.md', data: enc.encode(lic) }
+    ];
+    return new Blob([buildZipFromFiles(files)], { type: 'application/zip' });
+  }).then(function(blob) {
+    fire(blob);
+  }).catch(function() {
+    fire(new Blob([new TextEncoder().encode('Failed to build pack.')], { type: 'application/zip' }));
   });
 });
 
