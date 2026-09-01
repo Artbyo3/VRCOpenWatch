@@ -39,6 +39,16 @@
     align-items:center;
     margin-bottom:48px;
   }
+  .left-group{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .right-group{
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
   .logo{
     font-weight:700;
     font-size:14px;
@@ -54,6 +64,18 @@
     width:5px;height:5px;
     border-radius:50%;
     background:var(--green);
+  }
+  .github-link{
+    display:inline-flex;
+    align-items:center;
+    color:var(--text-secondary);
+    opacity:0.6;
+    transition:all 0.15s ease;
+    line-height:0;
+  }
+  .github-link:hover{
+    opacity:1;
+    color:var(--text-mid);
   }
   .lang-bar{
     display:flex;
@@ -581,29 +603,31 @@
   .footer a:hover{color:var(--accent);}
   .footer .sep{color:var(--border-hover);}
   .dev-mode-btn{
-    background:none;
-    border:1px solid transparent;
+    background:var(--surface);
+    border:1px solid var(--border);
     color:var(--text-secondary);
     font-family:'Rajdhani', sans-serif;
-    font-size:11px;
+    font-size:12px;
     font-weight:600;
+    letter-spacing:0.5px;
     cursor:pointer;
-    padding:2px 8px;
-    border-radius:var(--radius-xs);
+    padding:5px 12px;
+    border-radius:var(--radius-sm);
     transition:all 0.15s ease;
-    opacity:0.6;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
   }
   .dev-mode-btn:hover{
-    opacity:1;
     color:var(--text-mid);
-    border-color:var(--border);
+    border-color:var(--text-mid);
   }
   .dev-mode-btn.active{
-    opacity:1;
     background:var(--accent-dim);
     color:var(--accent);
-    border-color:var(--border-accent);
+    border-color:var(--text-accent);
   }
+  .dev-mode-btn svg{display:block;}
 
   .mode-tabs{
     display:flex;
@@ -954,10 +978,16 @@
     .row2{grid-template-columns:1fr;gap:12px;}
     .actions-bar .btn-primary{width:100%;}
   }
+  @media (max-width:420px){
+    .top-bar{flex-direction:column;gap:12px;align-items:flex-start;}
+    .right-group{align-self:flex-end;}
+    .lang-bar{align-self:flex-start;}
+  }
   @media (max-width:360px){
     .hero h1{font-size:17px;}
     .live-clock{font-size:22px;padding:12px;letter-spacing:3px;}
     .top-bar{flex-direction:column;gap:10px;align-items:flex-start;}
+    .right-group{align-self:flex-start;flex-wrap:wrap;}
     .lang-bar{align-self:flex-start;}
     pre{max-height:220px;font-size:10px;}
     .frame-strip{max-height:80px;}
